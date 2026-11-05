@@ -3,24 +3,57 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*' # Сборка запускается только при создании тега (например, v1.0.0)
-  workflow_dispatch: # Кнопка для ручного запуска из интерфейса GitHub
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
-    name: Build ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
-          - target: aarch64-unknown-linux-musl
-            name: linux-arm64
+          # --- LINUX (через cargo-zigbuild) ---
           - target: x86_64-unknown-linux-musl
-            name: linux-amd64
-          - target: armv7-unknown-linux-musleabihf
-            name: linux-armv7
-          - target: i686-unknown-linux-musl
-            name: linux-386
+            name: zerotorr-linux-amd64
+            os: ubuntu-latest
+            builder: zig
+          - target: aarch64-unknown-linux-musl
+            name: zerotorr-linux-arm64
+            os: ubuntu-latest
+            builder: zig
+            
+          # Спец-сборка под Cortex-A53 (Аппаратное ускорение)
+          - target: aarch64-unknown-linux-musl
+            name: zerotorr-linux-arm64-cortex-a53
+            os: ubuntu-latest
+            builder: zig
+            rustflags: "-C target-cpu=cortex-a53 -C target-feature=+crypto,+crc,+aes,+sha2"
+            
+          # --- FREEBSD (кросс-компиляция через Zig) ---
+          - target: x86_64-unknown-freebsd
+            name: zerotorr-freebsd-amd64
+            os: ubuntu-latest
+            builder: zig
+
+          # --- WINDOWS ---
+          - target: x86_64-pc-windows-msvc
+            name: zerotorr-windows-amd64.exe
+            os: windows-latest
+            builder: cargo
+
+          # --- MACOS (Intel & Apple Silicon) ---
+          - target: x86_64-apple-darwin
+            name: zerotorr-macos-intel
+            os: macos-latest
+            builder: cargo
+          - target: aarch64-apple-darwin
+            name: zerotorr-macos-arm64
+            os: macos-latest
+            builder: cargo
+
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
 
     steps:
       - name: Checkout code
@@ -31,28 +64,40 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install zig and cargo-zigbuild
+      - name: Install Zig and cargo-zigbuild (Ubuntu only)
+        if: matrix.builder == 'zig'
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip
           pip3 install ziglang cargo-zigbuild
 
-      - name: Build project
+      - name: Build with cargo-zigbuild (Linux/FreeBSD)
+        if: matrix.builder == 'zig'
         run: cargo zigbuild --release --target ${{ matrix.target }}
 
-      - name: Rename binary
-        run: mv target/${{ matrix.target }}/release/zerotorr zerotorr-${{ matrix.name }}
+      - name: Build with standard cargo (Windows/macOS)
+        if: matrix.builder == 'cargo'
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Rename binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: mv target/${{ matrix.target }}/release/zerotorr ${{ matrix.name }}
+
+      - name: Rename binary (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: mv target/${{ matrix.target }}/release/zerotorr.exe ${{ matrix.name }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: zerotorr-${{ matrix.name }}
-          path: zerotorr-${{ matrix.name }}
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: zerotorr-${{ matrix.name }}
+          files: ${{ matrix.name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
