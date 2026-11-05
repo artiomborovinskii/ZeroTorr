@@ -29,12 +29,6 @@ jobs:
             os: ubuntu-latest
             builder: zig
             rustflags: "-C target-cpu=cortex-a53 -C target-feature=+crypto,+crc,+aes,+sha2"
-            
-          # --- FREEBSD (кросс-компиляция через Zig) ---
-          - target: x86_64-unknown-freebsd
-            name: zerotorr-freebsd-amd64
-            os: ubuntu-latest
-            builder: zig
 
           # --- WINDOWS ---
           - target: x86_64-pc-windows-msvc
