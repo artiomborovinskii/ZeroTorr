@@ -1,0 +1,15 @@
+# Сборка ZeroTorr.
+#
+# JEMALLOC_SYS_WITH_MALLOC_CONF — печётся В C-КОД jemalloc на этапе configure
+# (это compiled-in дефолт je_malloc_conf, не символ и не env при запуске).
+# Тюнинг под слабые устройства (Яндекс.Станция Lite, 238 МБ RAM):
+#   narenas:2           — по числу tokio-воркеров в --low-memory; каждая лишняя
+#                         арена — десятки КиБ метаданных (дефолт 4×CPU = до 64
+#                         арен на станционных 4 ядрах);
+#   dirty_decay_ms:1000 — освобождённые страницы возвращаются ОС (~1 с,
+#                         madvise DONTNEED) вместо оседания в кэше аллокатора;
+#   muzzy_decay_ms:1000 — то же для lazy-purged страниц.
+# Действует только когда включена фича jemalloc (--features jemalloc);
+# обычные сборки (musl mallocng) этот env просто не читают.
+[env]
+JEMALLOC_SYS_WITH_MALLOC_CONF = "narenas:2,dirty_decay_ms:1000,muzzy_decay_ms:1000"

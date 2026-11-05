@@ -1,0 +1,77 @@
+[package]
+name = "zerotorr"
+version = "1.1.0"
+edition = "2021"
+description = "TorrServer (MatriX.111 API) rewritten in Rust on librqbit: tiny torrent streaming server"
+license = "GPL-3.0"
+
+[dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "fs", "signal", "time", "sync"] }
+tokio-util = { version = "0.7", features = ["io"] }
+tokio-stream = "0.1"
+axum = { version = "0.8", features = [] }
+http = "1"
+tower = "0.5"
+futures = { version = "0.3", default-features = false, features = ["std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_urlencoded = "0.7"
+bytes = "1"
+base64 = "0.22"
+percent-encoding = "2"
+anyhow = "1"
+libc = "0.2"
+librqbit = { version = "9", default-features = false, features = ["rust-tls"] }
+librqbit-core = { version = "9", default-features = false }
+# Встроенные корни Mozilla для каскада CA в manager.rs (Termux/BusyBox)
+rustls = { version = "0.23", default-features = false }
+webpki-roots = "0.26"
+# Один сетевой стек: reqwest уже есть в графе через librqbit (дублирующий
+# sync-клиент ureq удалён в 1.4.2 — экономия ~0.3 МБ бинарника и своей
+# копии rustls+webpki-roots).
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
+# release_max_level_warn: все trace!/debug!/info! librqbit/axum вырезаются
+# компилятором (меньше бинарник, ноль проверок уровня в горячих циклах).
+# warn! и ошибки остаются.
+tracing = { version = "0.1", features = ["release_max_level_warn"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "ansi", "env-filter"], optional = true }
+# jemalloc (опционально, --features jemalloc): тот же аллокатор, что использует
+# стоковая прошивка станции (maind/platformd — см. лог: jemalloc_memory_profiling_backend).
+# Тюнинг под 238 МБ RAM — в malloc_conf в main.rs: 2 арены (=2 tokio-воркера
+# --low-memory), decay 1с — освобождённые страницы почти сразу возвращаются ОС.
+# musl mallocng компактен, но при многочасовом стриминге фрагментирует мелкие
+# аллокации; jemalloc держит RSS предсказуемым. background_thread выключен
+# (на musl не поддерживается), prof не нужен — лишний вес.
+tikv-jemallocator = { version = "0.6", optional = true, default-features = false, features = ["unprefixed_malloc_on_supported_platforms", "stats"] }
+
+[features]
+dbg = ["tracing-subscriber"]
+jemalloc = ["dep:tikv-jemallocator"]
+
+# Чистый Rust SHA1/SHA256 вместо aws-lc (меньше бинарник, проще кросс-сборка musl)
+[patch.crates-io]
+librqbit-sha1-wrapper = { path = "vendor/librqbit-sha1-wrapper" }
+# Вендоренный librqbit: (+) forget_piece для RAM-хранилища, (+) окно стрима ZT_STREAM_BUF
+librqbit = { path = "vendor/librqbit" }
+
+[profile.release]
+# Максимальное сжатие бинарника (см. README: «Сборка и размер»)
+opt-level = "z"      # оптимизация строго под размер
+lto = "fat"          # глобальная межкрейтная оптимизация + dead code elimination
+codegen-units = 1    # максимальное качество оптимизации
+strip = "symbols"    # удалить отладочные символы и таблицы
+panic = "abort"      # без размотки стека
+debug = false
+incremental = false
+
+[profile.release.package.sha1]
+opt-level = 3
+
+[profile.release.package.sha2]
+opt-level = 3
+
+[profile.release.package.crc32fast]
+opt-level = 3
+
+[profile.release.package.miniz_oxide]
+opt-level = 3

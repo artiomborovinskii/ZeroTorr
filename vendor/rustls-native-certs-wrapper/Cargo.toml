@@ -1,0 +1,10 @@
+[package]
+name = "rustls-native-certs"
+version = "0.8.5"
+edition = "2021"
+license = "Apache-2.0 OR MIT OR ISC"
+description = "ZeroTorr drop-in replacement: built-in Mozilla CA bundle instead of system cert paths (Android/Termux-safe)"
+
+[dependencies]
+webpki-root-certs = "1.0"
+pki-types = { version = "1.10", package = "rustls-pki-types", features = ["std"] }

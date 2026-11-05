@@ -1,0 +1,14 @@
+station-update.sh  https://dro.pm/cd secret=0cdc6e7e12183c1b349a7a4d11f6e4b696d3edea  # v1.4.6: замена бинарника на станции + nohup (round-trip OK 2026-11-03)
+v1.4.6-arm64.upx   https://dro.pm/cb secret=2a38e7d26c9995bb32058ba150cd375de9c5cacd  # sha256 d2d2620f…, 1 866 880 Б (round-trip OK 2026-11-03)
+v1.4.6-arm64       https://dro.pm/h  secret=e325d75892ecf3b57cdf72ae87b8763c5aa38e2d   # без UPX, 5 153 360 Б, sha256 647d0957… (round-trip OK)
+v1.4.5-arm64.upx   https://dro.pm/j  secret=eaf4929d769e7c8b5caf03fb6ddc0012227324c2   # sha256 6029a6ba…, 1 866 424 Б (слот мог истечь)
+v1.4.5-arm64       https://dro.pm/ag secret=49dd4ba6f2d2a6b89d1d08021bbccbdd3d8a3a65   # 5 152 336 Б (слот мог истечь)
+v1.4.5-src         https://dro.pm/y  secret=7b1b35449aab5967ee78e05b6e471a53c42e116d   # исходники v1.4.5 (слот мог истечь)
+station-check.sh   https://dro.pm/k  secret=63b9a5f92d62843863d91f8335c33e0049a764be   # жив ли — проверять
+enable-zram.sh     https://dro.pm/b3 secret=8773b236e1493b89edc6908306e4070ddd9bbb83   # жив ли — проверять
+# v1.4.6 = zero-copy RAM-режим: кусок в RAM один раз (RamTorrent), RingCache — индекс тех же
+#   буферов Bytes; пауза без глубокой копии карты кусков. E2E (32 МиБ, localhost): md5 OK;
+#   стрим ~1-2с (у v1.4.5 ~18с); RSS в стриме ~14 МиБ (пик жизненного цикла 22,7 МиБ —
+#   фаза докачки/рантайм, отдельный анализ не завершён).
+# слоты живут ~сутки; API: curl -sA cli -F f=@file "https://dro.pm/fileman.php?secret=…" (обновить) / без secret (новый)
+# аллокатор: musl mallocng (jemalloc бенчмарк: +10МиБ RSS — отклонён)

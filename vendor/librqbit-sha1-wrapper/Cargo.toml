@@ -1,0 +1,21 @@
+[package]
+name = "librqbit-sha1-wrapper"
+version = "9.0.1"
+edition = "2021"
+license = "Apache-2.0"
+description = "Pure-Rust sha1/sha256 drop-in replacement vendored for ZeroTorr (no aws-lc/OpenSSL C code)"
+
+[dependencies]
+# asm: sha1-asm (hand-written asm для x86_64/aarch64) — на Cortex-A53 SHA1 в
+# софтовой реализации упирается в CPU при проверке кусков. SHA2 (aarch64) и
+# SHA-NI (x86_64) ускоряются и так: RustCrypto 0.10 сам детектит их в рантайме
+# (cpufeatures), задавать target-feature=+crypto нельзя — SIGILL на CPU без
+# крипто-расширений.
+sha1 = { version = "0.10", features = ["asm"] }
+sha2 = "0.10"
+
+[features]
+# Совместимость по именам фич с оригиналом; обе маппятся в RustCrypto (чистый Rust).
+default = []
+sha1-crypto-hash = []
+sha1-ring = []

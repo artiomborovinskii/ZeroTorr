@@ -1,0 +1,75 @@
+diff -urN a/Cargo.toml b/Cargo.toml
+--- a/Cargo.toml	2026-11-03 12:00:00.000000000 +0000
++++ b/Cargo.toml	2026-11-05 12:00:00.000000000 +0000
+@@ -43,6 +43,20 @@
+ opt-level = "z"      # оптимизация строго под размер
+ lto = "fat"          # глобальная межкрейтная оптимизация + dead code elimination
+ codegen-units = 1    # максимальное качество оптимизации
+-strip = "symbols"    # удалить отладочные символы и таблицы
++strip = "symbols"    # удалить отладочные символы
+ panic = "abort"      # без размотки стека
+ debug = false
+ incremental = false
++
++# Аппаратные горячие циклы ускоряем до максимума, пока весь бинарник сжат по размеру:
++[profile.release.package.sha1]
++opt-level = 3
++
++[profile.release.package.sha2]
++opt-level = 3
++
++[profile.release.package.crc32fast]
++opt-level = 3
++
++[profile.release.package.miniz_oxide]
++opt-level = 3
+diff -urN a/vendor/librqbit/Cargo.toml b/vendor/librqbit/Cargo.toml
+--- a/vendor/librqbit/Cargo.toml	2026-11-03 12:00:00.000000000 +0000
++++ b/vendor/librqbit/Cargo.toml	2026-11-05 12:00:00.000000000 +0000
+@@ -193,7 +193,9 @@
+ version = "0.7"
+ 
+ [dependencies.serde_with]
+-version = "3"
++version = "3"
++default-features = false
++features = ["macros", "base64", "hex"]
+ 
+ [dependencies.sha1w]
+ version = "9.0.1"
+diff -urN a/src/main.rs b/src/main.rs
+--- a/src/main.rs	2026-11-03 12:00:00.000000000 +0000
++++ b/src/main.rs	2026-11-05 12:00:00.000000000 +0000
+@@ -28,9 +28,19 @@
+     let low_memory = std::env::args().any(|a| a == "--low-memory");
+ 
+     // Настройка асинхронного рантайма под архитектуру SoC
+-    let workers = if low_memory { 2 } else { num_cpus::get().min(4) };
++    // На 4-ядерном Amlogic оставляем ядра под Алису и системный звук,
++    // предотвращая starvation аудио-демонов и минимизируя переключения контекста.
++    let workers = if low_memory { 2 } else { 3 };
++    let max_blocking = if low_memory { 4 } else { 8 };
++
+     let runtime = tokio::runtime::Builder::new_multi_thread()
+         .worker_threads(workers)
++        .max_blocking_threads(max_blocking)
++        .thread_stack_size(1024 * 1024) // 1 МБ стек (защита от ulimit -s 1024 на станции)
++        .thread_name("zt-async")
+         .enable_all()
+         .build()?;
+ 
+diff -urN a/src/api.rs b/src/api.rs
+--- a/src/api.rs	2026-11-03 12:00:00.000000000 +0000
++++ b/src/api.rs	2026-11-05 12:00:00.000000000 +0000
+@@ -120,6 +120,11 @@
+     // В цикле отдачи стрима плееру:
+     // Потоковая отдача нулевыми срезами Bytes + кооперативный yield воркера Tokio
+     let stream = async_stream::stream! {
+         while let Some(chunk) = pump.next_chunk().await? {
++            // Кооперативная уступка кванта времени планировщику Tokio:
++            // Гарантирует, что тяжелая отдача HTTP-трафика не заблокирует
++            // обработку входящих P2P-пакетов и таймеров даже на 2 ядрах.
++            tokio::task::yield_now().await;
++            yield Ok(http_body::Frame::data(chunk));
+         }
+     };
