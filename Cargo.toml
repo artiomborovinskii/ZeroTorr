@@ -29,7 +29,7 @@ webpki-roots = "0.26"
 # Один сетевой стек: reqwest уже есть в графе через librqbit (дублирующий
 # sync-клиент ureq удалён в 1.4.2 — экономия ~0.3 МБ бинарника и своей
 # копии rustls+webpki-roots).
-reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "webpki-roots"] }
 # release_max_level_warn: все trace!/debug!/info! librqbit/axum вырезаются
 # компилятором (меньше бинарник, ноль проверок уровня в горячих циклах).
 # warn! и ошибки остаются.
