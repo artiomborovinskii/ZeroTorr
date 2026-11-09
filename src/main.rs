@@ -153,6 +153,7 @@ fn main() -> Result<()> {
 /// tmpfs/ramfs под каталогом данных? (авто-RAM-режим).
 /// Каталога может ещё не существовать — поднимаемся до ближайшего живого
 /// предка (созданный позже каталог унаследует ту же ФС).
+#[cfg(target_os = "linux")]
 fn is_ramfs(p: &std::path::Path) -> bool {
     use std::os::unix::ffi::OsStrExt as _;
     const TMPFS_MAGIC: u32 = 0x0102_1994;
@@ -168,6 +169,11 @@ fn is_ramfs(p: &std::path::Path) -> bool {
         }
         cur = dir.parent();
     }
+    false
+}
+
+#[cfg(not(target_os = "linux"))]
+fn is_ramfs(_p: &std::path::Path) -> bool {
     false
 }
 
