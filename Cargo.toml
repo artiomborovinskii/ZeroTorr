@@ -75,14 +75,3 @@ opt-level = 3
 
 [profile.release.package.miniz_oxide]
 opt-level = 3
-[profile.release.package.sha1]
-opt-level = 3
-
-[profile.release.package.sha2]
-opt-level = 3
-
-[profile.release.package.crc32fast]
-opt-level = 3
-
-[profile.release.package.miniz_oxide]
-opt-level = 3
