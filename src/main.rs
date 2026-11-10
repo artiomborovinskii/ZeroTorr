@@ -200,3 +200,68 @@ Usage: zerotorr [flags]
   --no-ram-storage         force disk storage even on tmpfs"
     );
 }
+
+
+const EMBEDDED_FALLBACK_CA_PEM: &str = "-----BEGIN CERTIFICATE-----\n\
+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\n\
+-----END CERTIFICATE-----\n";
+
+fn init_ssl_cert_env() {
+    if std::env::var_os("SSL_CERT_FILE").is_some() || std::env::var_os("SSL_CERT_DIR").is_some() {
+        return;
+    }
+    let candidates = [
+        "/data/data/com.termux/files/usr/etc/tls/cert.pem",
+        "/etc/ssl/certs/ca-certificates.crt",
+        "/etc/pki/tls/certs/ca-bundle.crt",
+        "/etc/ssl/ca-bundle.pem",
+        "/etc/ssl/cert.pem",
+        "/system/etc/security/cacerts",
+    ];
+    for p in &candidates {
+        if std::path::Path::new(p).exists() {
+            unsafe { std::env::set_var("SSL_CERT_FILE", p); }
+            return;
+        }
+    }
+    let temp_dir = std::env::temp_dir();
+    let fallback = temp_dir.join("zerotorr_ca.pem");
+    if !fallback.exists() {
+        let _ = std::fs::write(&fallback, EMBEDDED_FALLBACK_CA_PEM);
+    }
+    unsafe { std::env::set_var("SSL_CERT_FILE", fallback); }
+}
