@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build ${{ matrix.name }}
@@ -13,85 +16,100 @@ jobs:
     strategy:
       matrix:
         include:
-          # --- LINUX (через cargo-zigbuild) ---
+          # --- LINUX AMD64 (musl статика) ---
           - target: x86_64-unknown-linux-musl
             name: zerotorr-linux-amd64
             os: ubuntu-latest
             builder: zig
+            has_upx: true
+
+          # --- LINUX ARM64 (Универсальный musl) ---
           - target: aarch64-unknown-linux-musl
             name: zerotorr-linux-arm64
             os: ubuntu-latest
             builder: zig
-            
-          # Спец-сборка под Cortex-A53 (Аппаратное ускорение)
+            has_upx: true
+
+          # --- LINUX ARM64 CORTEX-A53 (Аппаратный разгон под Станции / ТВ-боксы) ---
           - target: aarch64-unknown-linux-musl
             name: zerotorr-linux-arm64-cortex-a53
             os: ubuntu-latest
             builder: zig
             rustflags: "-C target-cpu=cortex-a53 -C target-feature=+crypto,+crc,+aes,+sha2"
+            has_upx: true
 
-          # --- WINDOWS ---
+          # --- WINDOWS (x86_64 MSVC) ---
           - target: x86_64-pc-windows-msvc
             name: zerotorr-windows-amd64.exe
             os: windows-latest
             builder: cargo
+            has_upx: false
 
-          # --- MACOS (Intel & Apple Silicon) ---
+          # --- MACOS (Intel) ---
           - target: x86_64-apple-darwin
             name: zerotorr-macos-intel
             os: macos-latest
             builder: cargo
+            has_upx: false
+
+          # --- MACOS (Apple Silicon M1/M2/M3/M4) ---
           - target: aarch64-apple-darwin
             name: zerotorr-macos-arm64
             os: macos-latest
             builder: cargo
-
-    env:
-      RUSTFLAGS: ${{ matrix.rustflags }}
+            has_upx: false
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Rust
+      - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install Zig and cargo-zigbuild (Ubuntu only)
-        if: matrix.builder == 'zig'
+      - name: Install Tools (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pip
+          sudo apt-get install -y python3-pip upx-ucl
           pip3 install ziglang cargo-zigbuild
 
-      - name: Build with cargo-zigbuild (Linux/FreeBSD)
+      - name: Build with Zig (Linux musl)
         if: matrix.builder == 'zig'
+        env:
+          RUSTFLAGS: "${{ matrix.rustflags }} --remap-path-prefix=${{ github.workspace }}=/build"
         run: cargo zigbuild --release --target ${{ matrix.target }}
 
-      - name: Build with standard cargo (Windows/macOS)
+      - name: Build with Standard Cargo (Windows/macOS)
         if: matrix.builder == 'cargo'
+        env:
+          RUSTFLAGS: "--remap-path-prefix=${{ github.workspace }}=/build"
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Rename binary (Unix)
+      - name: Package Binary (Unix)
         if: matrix.os != 'windows-latest'
-        run: mv target/${{ matrix.target }}/release/zerotorr ${{ matrix.name }}
+        run: |
+          mv target/${{ matrix.target }}/release/zerotorr ${{ matrix.name }}
+          chmod +x ${{ matrix.name }}
 
-      - name: Rename binary (Windows)
+      - name: Package Binary (Windows)
         if: matrix.os == 'windows-latest'
         shell: bash
         run: mv target/${{ matrix.target }}/release/zerotorr.exe ${{ matrix.name }}
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.name }}
-          path: ${{ matrix.name }}
+      - name: Create UPX variant (Linux)
+        if: matrix.has_upx == true
+        run: |
+          cp ${{ matrix.name }} ${{ matrix.name }}.upx
+          upx --ultra-brute --lzma ${{ matrix.name }}.upx || upx --best --lzma ${{ matrix.name }}.upx
 
-      - name: Upload to Release
+      - name: Publish Artifacts to GitHub Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: ${{ matrix.name }}
+          files: |
+            ${{ matrix.name }}
+            ${{ matrix.name }}.upx
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

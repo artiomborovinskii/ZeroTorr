@@ -55,15 +55,26 @@ librqbit-sha1-wrapper = { path = "vendor/librqbit-sha1-wrapper" }
 librqbit = { path = "vendor/librqbit" }
 
 [profile.release]
-# Максимальное сжатие бинарника (см. README: «Сборка и размер»)
-opt-level = "z"      # оптимизация строго под размер
-lto = "fat"          # глобальная межкрейтная оптимизация + dead code elimination
-codegen-units = 1    # максимальное качество оптимизации
-strip = "symbols"    # удалить отладочные символы и таблицы
-panic = "abort"      # без размотки стека
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
 debug = false
 incremental = false
+overflow-checks = false
 
+[profile.release.package.sha1]
+opt-level = 3
+
+[profile.release.package.sha2]
+opt-level = 3
+
+[profile.release.package.crc32fast]
+opt-level = 3
+
+[profile.release.package.miniz_oxide]
+opt-level = 3
 [profile.release.package.sha1]
 opt-level = 3
 
