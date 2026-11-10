@@ -273,6 +273,8 @@ version = "3"
 default-features = false
 features = ["macros", "base64", "hex"]
 
+["macros", "base64", "hex"]
+
 [dependencies.sha1w]
 version = "9.0.1"
 default-features = false

@@ -25,6 +25,7 @@ static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 // dirty/muzzy decay 1 с — освобождённые страницы почти сразу возвращаются ОС,
 // RSS после всплеска (перемотка, метаданные) спадает, а не остаётся на пике.
 fn main() -> Result<()> {
+    init_ssl_cert_env();
     let args: Vec<String> = std::env::args().collect();
 
     let mut port: u16 = 8090;
